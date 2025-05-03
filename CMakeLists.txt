@@ -156,6 +156,11 @@ target_include_directories(zlibstatic PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE
 set_target_properties(zlib PROPERTIES DEFINE_SYMBOL ZLIB_DLL)
 set_target_properties(zlib PROPERTIES SOVERSION 1)
 
+if (UNIX)
+    target_compile_options(zlib PRIVATE -fPIC)
+    target_compile_options(zlibstatic PRIVATE -fPIC)
+endif()
+
 if(NOT CYGWIN)
     # This property causes shared libraries on Linux to have the full version
     # encoded into their final filename.  We disable this on Cygwin because

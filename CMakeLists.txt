@@ -6,6 +6,7 @@ project(zlib C)
 set(VERSION "1.3.1")
 
 option(ZLIB_BUILD_EXAMPLES "Enable Zlib Examples" ON)
+option(ZLIB_ONLY_STATIC "Only build static library" OFF)
 
 set(INSTALL_BIN_DIR "${CMAKE_INSTALL_PREFIX}/bin" CACHE PATH "Installation directory for executables")
 set(INSTALL_LIB_DIR "${CMAKE_INSTALL_PREFIX}/lib" CACHE PATH "Installation directory for libraries")
@@ -149,15 +150,23 @@ if(MINGW)
     set(ZLIB_DLL_SRCS ${CMAKE_CURRENT_BINARY_DIR}/zlib1rc.obj)
 endif(MINGW)
 
-add_library(zlib SHARED ${ZLIB_SRCS} ${ZLIB_DLL_SRCS} ${ZLIB_PUBLIC_HDRS} ${ZLIB_PRIVATE_HDRS})
-target_include_directories(zlib PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
+if (NOT ZLIB_ONLY_STATIC)
+    add_library(zlib SHARED ${ZLIB_SRCS} ${ZLIB_DLL_SRCS} ${ZLIB_PUBLIC_HDRS} ${ZLIB_PRIVATE_HDRS})
+    target_include_directories(zlib PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
+endif()
+
 add_library(zlibstatic STATIC ${ZLIB_SRCS} ${ZLIB_PUBLIC_HDRS} ${ZLIB_PRIVATE_HDRS})
 target_include_directories(zlibstatic PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
-set_target_properties(zlib PROPERTIES DEFINE_SYMBOL ZLIB_DLL)
-set_target_properties(zlib PROPERTIES SOVERSION 1)
+
+if (NOT ZLIB_ONLY_STATIC)
+    set_target_properties(zlib PROPERTIES DEFINE_SYMBOL ZLIB_DLL)
+    set_target_properties(zlib PROPERTIES SOVERSION 1)
+endif()
 
 if (UNIX)
-    target_compile_options(zlib PRIVATE -fPIC)
+    if (NOT ZLIB_ONLY_STATIC)
+        target_compile_options(zlib PRIVATE -fPIC)
+    endif()
     target_compile_options(zlibstatic PRIVATE -fPIC)
 endif()
 
@@ -169,18 +178,26 @@ if(NOT CYGWIN)
     #
     # This has no effect with MSVC, on that platform the version info for
     # the DLL comes from the resource file win32/zlib1.rc
-    set_target_properties(zlib PROPERTIES VERSION ${ZLIB_FULL_VERSION})
+    if (NOT ZLIB_ONLY_STATIC)
+        set_target_properties(zlib PROPERTIES VERSION ${ZLIB_FULL_VERSION})
+    endif()
 endif()
 
 if(UNIX)
     # On unix-like platforms the library is almost always called libz
-   set_target_properties(zlib zlibstatic PROPERTIES OUTPUT_NAME z)
-   if(NOT APPLE AND NOT(CMAKE_SYSTEM_NAME STREQUAL AIX))
-     set_target_properties(zlib PROPERTIES LINK_FLAGS "-Wl,--version-script,\"${CMAKE_CURRENT_SOURCE_DIR}/zlib.map\"")
-   endif()
+    set_target_properties(zlibstatic PROPERTIES OUTPUT_NAME z)
+
+    if (NOT ZLIB_ONLY_STATIC)
+        set_target_properties(zlib PROPERTIES OUTPUT_NAME z)
+        if(NOT APPLE AND NOT(CMAKE_SYSTEM_NAME STREQUAL AIX))
+            set_target_properties(zlib PROPERTIES LINK_FLAGS "-Wl,--version-script,\"${CMAKE_CURRENT_SOURCE_DIR}/zlib.map\"")
+        endif()
+    endif()
 elseif(BUILD_SHARED_LIBS AND WIN32)
     # Creates zlib1.dll when building shared library version
-    set_target_properties(zlib PROPERTIES SUFFIX "1.dll")
+    if (NOT ZLIB_ONLY_STATIC)
+        set_target_properties(zlib PROPERTIES SUFFIX "1.dll")
+    endif()
 endif()
 
 if(NOT SKIP_INSTALL_LIBRARIES AND NOT SKIP_INSTALL_ALL )
